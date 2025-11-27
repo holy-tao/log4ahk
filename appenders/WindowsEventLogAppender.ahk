@@ -6,7 +6,7 @@
 /**
  * An appender that writes log event messages to the Windows Event Log. This appender requires
  * the following types from AhkWin32Projection to be available in a library directory under
- * Lib/AhkWin32Projection/etc:
+ * Lib/AhkWin32Projection/:
  * - Windows.Win32.System.EventLog.Apis
  * - Windows.Win32.System.EventLog.REPORT_EVENT_TYPE
  * 
@@ -32,7 +32,7 @@ class WindowsEventLogAppender {
     }
 
     /**
-     * Logs an event
+     * Logs an event to the Windows Event Log
      * @param {Log.Event} event event to log 
      */
     Call(event){
@@ -106,6 +106,9 @@ class WindowsEventLogAppender {
         RegWrite(7, "REG_DWORD", EVT_SRC_KEY, "TypesSupported")
     }
 
+    /**
+     * Cleans up the logger, unregisters it if it's still registerede
+     */
     __Delete(){
         OnExit(this._OnExit, 0)
         if(this._hEvtLog != 0) {
