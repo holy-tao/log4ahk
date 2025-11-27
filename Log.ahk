@@ -6,14 +6,14 @@ class Log {
      * Enum of valid log levels
      */
     class Level {
-        static OFF => 0
+        static ALL => 0
         static TRACE => 1
         static DEBUG => 2
         static INFO => 3
         static WARN => 4
         static ERROR => 5
         static FATAL => 6
-        static ALL => 6
+        static OFF => 7
 
         static __Item[levelNum] {
             get{
