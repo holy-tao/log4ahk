@@ -42,26 +42,9 @@ class WindowsEventLogAppender {
         arrBuf := Buffer(A_PtrSize, 0)
         NumPut("ptr", lpStrBuf.Ptr, arrBuf)
 
-        try{
-            EventLog.ReportEventW(
-                this._hEvtLog, 
-                this._LogLevelToEventType(event.level), 
-                0,
-                event.level,
-                0, 
-                1, 
-                0, 
-                arrBuf, 
-                0)
-        }
-        catch OSError as err {
-            ; Something internal to ReportEventW can throw a 203 and ReportEventW doesn't reset LastError
-            ; Anyways, we can safely ignore it
-            ; https://github.com/holy-tao/AhkWin32Projection/issues/88
-            if(err.Number != 203){
-                throw err
-            }
-        }
+        wType := this._LogLevelToEventType(event.level)
+
+        EventLog.ReportEventW(this._hEvtLog, wType, 0, event.level, 0, 1, 0, arrBuf, 0)
     }
 
     /**
