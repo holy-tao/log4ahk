@@ -2,30 +2,41 @@
 A lightweight, highly configurable logging module for AutoHotkey based off Java's [Log4J](https://logging.apache.org/log4j/2.x/index.html).
 
 ## Usage
-The core components of log4ahk are _Appenders_ and _Filters_. Appenders write logs to destinations like log files or a database and filters allow for finer control over logging behavior than the simple log level. Appenders and Filters are [callable objects](https://www.autohotkey.com/docs/v2/misc/Functor.htm) - they can be simple functions or complex stateful objects.
+The core components of log4ahk are _Loggers_, _Appenders_, and _Filters_. Loggers define individual logging pipelines. Appenders write logs to destinations like log files or a database and filters allow for finer control over logging behavior than the simple log level. Appenders and Filters are [callable objects](https://www.autohotkey.com/docs/v2/misc/Functor.htm) - they can be simple functions or complex stateful objects.
 
 A dead-simple logging configuration that simply appends logs to stdout might look like:
 
 ```autohotkey
-Log.To((log) => FileAppend(log.payload . "`n", "*"))
+Log
+    .ToLogger(Log.Logger()
+        .WithAppender((log) => FileAppend(log.payload . "`n", "*"))
+)
+```
+In practice, we likely want to use a [`FileAppender`](./appenders/FileAppender.ahk), which can buffer its writes and does not require us to repeatedly open and reopen the file. To ignore logs with "Unicorns" in the message, we can add a filter:
+```autohotkey
+Log
+    .ToLogger(Log.Logger("Filtered")
+        .Filter((log) => !InStr(log.payload, "Unicorns"))
+        .WithAppender(FileAppender("filelog.log"))
+)
 ```
 
-To ignore logs with "Unicorns" in the message, we can add a filter:
+We can of course use as many loggers with as many filters and appenders as we want. We can also add global filters. Loggers can also define their own log levels. The example below will events with a severity of `ERROR` or above to the Windows Event Log. 
 ```autohotkey
 Log
     .Filter((log) => !InStr(log.payload, "Unicorns"))
-    .To((log) => FileAppend(log.payload . "`n", "*"))
+    .ToLogger(
+        Log.Logger("FileLogs")
+            .WithAppender(FileAppender("Script-" . A_Now . ".log"))
+            .WithAppender(ConsoleAppender())
+    )
+    .ToLogger(
+        Log.Logger("WindowsEvents", Log.Level.ERROR)
+            .WithAppender(WindowsEventLogAppender())
+    )
 ```
 
-We can of course use as many filters and appenders as we want:
-```autohotkey
-Log
-    .Filter((log) => !InStr(log.payload, "Unicorns"))
-    .To((log) => FileAppend(log.payload . "`n", "*"))
-    .To((log) => FileAppend(log.payload . "`n", A_WorkingDir . "/script.log"))
-```
-
-In practice, we likely want to use a [`FileAppender`](./appenders/FileAppender.ahk), which can buffer its writes and does not require us to repeatedly open and reopen the file.
+Unlike Log4J and related projects like [log4rs](https://docs.rs/log4rs/latest/log4rs/), log4ahk has no true "logger heirarchy", but Loggers are downstream of the global configuration. If `Log.CurrentLevel` is `OFF`, no messages will be sent to any registered loggers. However, if `Log.CurrentLevel` is `TRACE`, the "WindowsEvents" logger above will still ignore events unless they have a level of `ERROR` or above.
 
 Once your logging is configured, you can log an event using any of the `Log.<level>` APIs:
 ```autohotkey
@@ -98,35 +109,43 @@ The shape of a log object is:
     payload: String
     timestamp: YYYYMMDD24HHSS timestamp
     msec: Value of A_MSec at the time of the log
-    target: The value of Log.target - by default, A_ScriptName
+    target: The name of the logger which is processing the event
 }
 ```
 
 ### Filtering
 When a log event is processed, every filter registered with log4ahk is called and its return value is checked. If all filters return a truthy value, the event proceeds through the pipeline. Filters can also mutate the log object, if you want.
 
-Filters are checked in the order in which they are registered.
+Filtering can be done globally using `Log.Filter`, or per-logger. Filters are checked in the order in which they are registered.
 
 ## Architecture
-Unlike Log4J and related projects like [log4rs](https://docs.rs/log4rs/latest/log4rs/), there is no Logger heirarchy and there is no specific Encoder or Layout layer - Appenders should do this themselves.
-
-### Lifecycle of a Log Event
 log4ahk is meant to be lightweight. It will avoid evaluating log payloads whenever possible and quit from filters early if any return false.
 
 ``` mermaid
 ---
-title: Log Event Lifecycle Flowchart
 config:
   theme: redux
+  layout: elk
+  look: neo
+title: Log Event Lifecycle Flowchart
 ---
-flowchart LR 
-    Start(["Log Event Initiated"]) --> Level{"Event level ≥ Log level?"}
-    Level -- No --> Stop(["Stop"])
-    Level -- Yes --> Payload("Evaluate payload")
+flowchart TB
+ subgraph s1["Log.Logger"]
+        LoggerLevel{"Level ≥ Logger Log level?"}
+        LoggerFilters{"Logger Filters Pass?"}
+        Append(["Invoke appenders"])
+  end
+    LoggerFilters -- Yes --> Append
+    LoggerFilters -- No --> Stop(["Discard event"])
+    LoggerLevel -- No ---> Stop
+    LoggerLevel -- Yes --> LoggerFilters
+    Start(["Log Event Initiated"]) --> Level{"Level ≥ Global Log level?"}
+    Level --> GlobalFilters{"Global Filters Pass?"}
+    Level -- No --> Stop
+    GlobalFilters -- No --> Stop
+    GlobalFilters -- Yes --> Payload("Evaluate payload")
     Payload --> Object("Create Log.Event Object")
-    Object --> Filters{"All Filters Pass?"}
-    Filters -- No --> Stop(["Discard event"])
-    Filters -- Yes --> Append(["Invoke appenders"])
+    Object --> LoggerLevel
 ```
 
 When a log event is initiated, the log4ahk first checks its level. If the log's level is lower than the configured log level, it is immediately discarded. Otherwise, the payload is evaluated and a log object is created. If all filters pass, the object is sent to all configured appenders, which will encode and append the log to its final destination.

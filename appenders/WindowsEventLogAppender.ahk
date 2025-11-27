@@ -107,7 +107,7 @@ class WindowsEventLogAppender {
     }
 
     /**
-     * Cleans up the logger, unregisters it if it's still registerede
+     * Cleans up the logger, unregisters it if it's still registered
      */
     __Delete(){
         OnExit(this._OnExit, 0)

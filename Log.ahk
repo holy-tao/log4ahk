@@ -1,3 +1,6 @@
+/** 
+ * log4ahk's primary entry point
+*/
 class Log {
     /**
      * Enum of valid log levels
@@ -10,6 +13,7 @@ class Log {
         static WARN => 4
         static ERROR => 5
         static FATAL => 6
+        static ALL => 6
 
         static __Item[levelNum] {
             get{
@@ -32,7 +36,72 @@ class Log {
 
             this.Timestamp := A_Now
             this.MSec := A_MSec
-            this.Target := Log.target
+        }
+    }
+
+    /**
+     * A Logger is the beginning of a logging pipeline and has its own log level, set of
+     * filters, and set of appenders.
+     */
+    class Logger {
+        
+        _Filters := []
+        _Appenders := []
+
+        /**
+         * Initializes a new Logger.
+         * @param {String} name the name of the logger. Must be unique among all registered
+         *          loggers (default: A_ScriptName) 
+         * @param {Integer} level the logger's level. If lower than the global log level, can
+         *          be used to filter logs (default: Log.Level.ALL)
+         */
+        __New(name := A_ScriptName, level := Log.Level.ALL){
+            this.Name := name
+            this.CurrentLevel := level
+
+            return this
+        }
+
+        /**
+         * Registers a new Appender
+         * @param {Func(Log.Event) => void} appender Callable object that writes an event somewhere
+         * @returns {Log} the Log class for chaining
+         */
+        WithAppender(appender){
+            if(!HasMethod(appender, , 1)){
+                throw TypeError("Appender must be a callable object that takes a Log.Event as parameter")
+            }
+
+            this._Appenders.Push(appender)
+            return this
+        }
+
+        /**
+         * Adds a filter to the log pipeline
+         * @param {Func(Log.Event) => boolean} filter Callable object that takes an event and returns a boolean
+         */
+        Filter(filter){
+            if(!HasMethod(filter, , 1)){
+                throw TypeError("Filter must be a callable object that takes a Log.Event as parameter and returns a boolean")
+            }
+
+            this._Filters.Push(filter)
+            return this
+        }
+
+        Call(event){
+            if(event.level < this.CurrentLevel)
+                return
+
+            event.Target := this.Name
+            for(filter in this._Filters){
+                if(!filter.Call(event))
+                    return
+            }
+
+            for(appender in this._Appenders){
+                appender.Call(event)
+            }
         }
     }
 
@@ -41,14 +110,8 @@ class Log {
      */
     static CurrentLevel := Log.Level.INFO
 
-    /**
-     * The name of the logging target (usually the script name) - useful
-     * if sending logs to an aggregator
-     */
-    static Target := A_ScriptName
-
     static _Filters := []
-    static _Appenders := []
+    static Loggers := Map()
 
     static __New(){
         this.DeleteProp("__New") ; static class
@@ -70,21 +133,20 @@ class Log {
     }
 
     /**
-     * Registers a new Appender
-     * @param {Func(Log.Event) => void} appender Callable object that writes an event somewhere
-     * @returns {Log} the Log class for chaining
+     * Registers a new logger
+     * @param {Log.Logger} logger logger to register 
      */
-    static To(appender){
-        if(!HasMethod(appender, , 1)){
-            throw TypeError("Appender must be a callable object that takes a Log.Event as parameter")
+    static ToLogger(logger) {
+        if(Log.Loggers.Has(logger.Name)){
+            throw ValueError("Logger with name " . logger.Name " is already registered")
         }
 
-        Log._Appenders.Push(appender)
+        this.Loggers[logger.Name] := logger
         return Log
     }
 
     /**
-     * Adds a filter to the log pipeline
+     * Adds a global filter to the log pipeline
      * @param {Func(Log.Event) => boolean} filter Callable object that takes an event and returns a boolean
      */
     static Filter(filter){
@@ -113,8 +175,8 @@ class Log {
                 return
         }
 
-        for(appender in Log._Appenders){
-            appender.Call(evt)
+        for(name, logger in Log.Loggers){
+            logger.Call(evt)
         }
     }
 
