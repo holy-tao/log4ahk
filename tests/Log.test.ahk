@@ -9,7 +9,7 @@
 
 OnError((thrown, mode) => Log.LogMessage(mode == "ExitApp" ? Log.Level.FATAL : Log.Level.ERROR, thrown))
 
-Log
+Log.Configure(Log.Level.INFO)
     .ToLogger(Log.Logger("FileLogs")
         .WithAppender(FileAppender("test.log"))
         .WithAppender(ConsoleAppender())

@@ -4,31 +4,32 @@ A lightweight, highly configurable logging module for AutoHotkey based off Java'
 ## Usage
 The core components of log4ahk are _Loggers_, _Appenders_, and _Filters_. Loggers define individual logging pipelines. Appenders write logs to destinations like log files or a database and filters allow for finer control over logging behavior than the simple log level. Appenders and Filters are [callable objects](https://www.autohotkey.com/docs/v2/misc/Functor.htm) - they can be simple functions or complex stateful objects.
 
-A dead-simple logging configuration that simply appends logs to stdout might look like:
+A dead-simple logging configuration that simply writes logs via [`OutputDebug`](https://www.autohotkey.com/docs/v2/lib/OutputDebug.htm) might look like:
 
 ```autohotkey
-Log
+Log.Configure()
     .ToLogger(Log.Logger()
-        .WithAppender((log) => FileAppend(log.payload . "`n", "*"))
-)
+        .WithAppender((log) => OutputDebug(log.payload))
+    )
 ```
 In practice, we likely want to use a [`FileAppender`](./appenders/FileAppender.ahk), which can buffer its writes and does not require us to repeatedly open and reopen the file. To ignore logs with "Unicorns" in the message, we can add a filter:
 ```autohotkey
-Log
+Log.Configure()
     .ToLogger(Log.Logger("Filtered")
         .Filter((log) => !InStr(log.payload, "Unicorns"))
         .WithAppender(FileAppender("filelog.log"))
-)
+    )
 ```
 
-We can of course use as many loggers with as many filters and appenders as we want. We can also add global filters. Loggers can also define their own log levels. The example below will events with a severity of `ERROR` or above to the Windows Event Log. 
+We can of course use as many loggers with as many filters and appenders as we want. We can also add global filters. Loggers can also define their own log levels. The example below explicitly sets the starting log level to `INFO` and configures a logger to log events with a severity of `ERROR` or above to the Windows Event Log. 
 ```autohotkey
-Log
+Log.Configure(Log.Level.INFO)
     .Filter((log) => !InStr(log.payload, "Unicorns"))
     .ToLogger(
         Log.Logger("FileLogs")
             .WithAppender(FileAppender("Script-" . A_Now . ".log"))
             .WithAppender(ConsoleAppender())
+            .WithAppender((log) => OutputDebug(log.payload))
     )
     .ToLogger(
         Log.Logger("WindowsEvents", Log.Level.ERROR)
@@ -63,15 +64,16 @@ Fundamentally, a log event consists of a _level_ and a _payload_. The level indi
 #### Log Levels
 log4ahk defines the following log levels in `Log.Level`. Higher levels are _more severe_.
 
-0. `OFF`
+0. `ALL`
 1. `TRACE`
 2. `DEBUG`
 3. `INFO`
 4. `WARN`
 5. `ERROR`
 6. `FATAL`
+7. `OFF`
 
-The default log level is 3 - `INFO`, but when the Log class is initialized, it will look for an environment variable named `AHK_LOG_LEVEL` and read its value. If the value is one of the strings above or a number 0-6, that value becomes the default log level. You can also set or retrieve the log level at any time:
+The default log level is `OFF`. You can explicitly set the log level in `Log.Configure`, but if you choose not to, it will look for an environment variable named `AHK_LOG_LEVEL` and read its value. If the value is one of the strings above or a number 0-6, that value becomes the default log level. You can also set or retrieve the log level at any time:
 
 ```autohotkey
 Log.Info("Log level is " . Log.Level[Log.CurrentLevel]) ; "Log level is INFO / ERROR / etc"

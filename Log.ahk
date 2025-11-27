@@ -113,23 +113,29 @@ class Log {
     static _Filters := []
     static Loggers := Map()
 
-    static __New(){
-        this.DeleteProp("__New") ; static class
+    /**
+     * Configures global settings and does any required initialization (nothing for now)
+     * @param {Integer?} level Log level to set - leave blank to read from AHK_LOG_LEVEL environment
+     *          variable
+     */
+    static Configure(level?){
+        levelNum := Log.Level.OFF
 
-        envVar := EnvGet("AHK_LOG_LEVEL")
-        if(envVar != ""){
-            if(IsInteger(envVar)){
-                levelNum := Integer(envVar)
-                if(levelNum < Log.Level.OFF || levelNum > Log.Level.FATAL){
-                    throw ValueError("Environment variable AHK_LOG_LEVEL is out of range", , levelNum)
-                }
-                Log.CurrentLevel := levelNum
-            }
-            else {
-                levelStr := StrUpper(envVar)
-                Log.CurrentLevel := Log.Level.%levelStr%
+        if(!IsSet(level)){
+            if((envVar := EnvGet("AHK_LOG_LEVEL")) != "") {
+                levelNum := IsInteger(envVar) ? Integer(envVar) : Log.Level.%StrUpper(envVar)%
             }
         }
+        else{
+            levelNum := level
+        }
+
+        if(levelNum < Log.Level.ALL || levelNum > Log.Level.OFF){
+            throw ValueError("Log level out of range", , levelNum)
+        }
+        Log.CurrentLevel := levelNum
+
+        return Log
     }
 
     /**
