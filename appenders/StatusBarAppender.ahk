@@ -11,8 +11,9 @@ class StatusBarAppender {
      * @param {Gui.StatusBar} statusBar The status bar to write to
      * @param {Integer} partIndex The {@link https://www.autohotkey.com/docs/v2/lib/GuiControls.htm#StatusBar part} 
      *          of the status bar to write to (default: 1)
-     * @param {Array} iconSet An array of {@link https://www.autohotkey.com/docs/v2/lib/GuiControls.htm#SB_SetIcon icon paths or handles} 
-     *          to use for the different log levels (default: [])
+     * @param {Array} iconSet An array of {@link https://www.autohotkey.com/docs/v2/lib/GuiControls.htm#SB_SetIcon icon handles} 
+     *          to use for the different log levels. Use a handle of 0 (NULL) to indicate that events for a
+     *          given level should not use an icon (default: [])
      */
     __New(statusBar, partIndex := 1, iconSet := []) {
         if(!(statusBar is Gui.StatusBar)) {
@@ -28,10 +29,10 @@ class StatusBarAppender {
      * @param {Log.Event} event the event to append
      */
     Call(event){
-        this._statusBar.SetText(event.Message, this._partIndex)
+        this._statusBar.SetText(event.Payload, this._partIndex)
 
         if(this._iconSet.Has(event.Level)) {
-            this._statusBar.SetIcon(this._iconSet[event.Level], this._partIndex)
+            SendMessage(0x040F, this._partIndex - 1, this._iconSet[event.Level], this._statusBar)
         }
     }
 }
