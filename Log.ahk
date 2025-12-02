@@ -24,6 +24,28 @@ class Log {
                 throw ValueError("Not a log level number", , levelNum)
             } 
         }
+
+        /**
+         * Takes a level number of the name of a level and resolves it to a valid log level,
+         * throwing if it can't.
+         * @param {String | Integer} lvlOrName value to resolve
+         * @returns {Integer} the resolved log leve 
+         */
+        static Resolve(lvlOrName){
+            if(IsInteger(lvlOrName)){
+                lvlOrName := Integer(lvlOrName)
+                if(lvlOrName < Log.Level.ALL || lvlOrName > Log.Level.OFF){
+                    throw ValueError("Log level out of range", , lvlOrName)
+                }
+
+                return lvlOrName
+            }
+            else if(lvlOrName is String){
+                return Log.Level.%lvlOrName%
+            }
+
+            throw TypeError("Expected a log level number or name, but got a(n) " . Type(lvlOrName), , lvlOrName)
+        }
     }
 
     /**
@@ -123,17 +145,12 @@ class Log {
 
         if(!IsSet(level)){
             if((envVar := EnvGet("AHK_LOG_LEVEL")) != "") {
-                levelNum := IsInteger(envVar) ? Integer(envVar) : Log.Level.%StrUpper(envVar)%
+                Log.CurrentLevel := Log.Level.Resolve(envVar)
             }
         }
         else{
-            levelNum := level
+            Log.CurrentLevel := Log.Level.Resolve(level)
         }
-
-        if(levelNum < Log.Level.ALL || levelNum > Log.Level.OFF){
-            throw ValueError("Log level out of range", , levelNum)
-        }
-        Log.CurrentLevel := levelNum
 
         return Log
     }
@@ -225,7 +242,6 @@ class Log {
 
         return message
     }
-
 ;@region Logging Aliases
     /**
      * Logs a TRACE level message
