@@ -143,6 +143,10 @@ class Log {
      * @param {Log.Logger} logger logger to register 
      */
     static ToLogger(logger) {
+        if(!(logger is Log.Logger)){
+            throw TypeError("Expected a Log.Logger but got a(n) " . Type(logger), , logger)
+        }
+
         if(Log.Loggers.Has(logger.Name)){
             throw ValueError("Logger with name " . logger.Name " is already registered")
         }
