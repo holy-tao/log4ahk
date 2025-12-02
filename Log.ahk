@@ -15,6 +15,14 @@ class Log {
         static FATAL => 6
         static OFF => 7
 
+        /**
+         * Retrieves the name of a log level.
+         * 
+         *      levelName := Log.Level[4] ; "WARN" 
+         * 
+         * @param {Integer} levelNum number to get the name of
+         * @returns {String} the name of the level
+         */
         static __Item[levelNum] {
             get{
                 for(levelName, num in this.OwnProps()){
