@@ -222,14 +222,14 @@ class Log {
      * @returns {String} the evaluated payload
      */
     static _EvaluatePayload(payload) {
-        if(payload is Error){
-            return Log._FormatErrorMessage(payload)
-        }
-        else if(HasMethod(payload, , 0)){
+        if(HasMethod(payload, , 0)){
             return Log._EvaluatePayload(payload.Call())
         }
         else if(HasMethod(payload, "ToString", 0)){
             return String(payload)
+        }
+        else if(payload is Error){
+            return Log._FormatErrorMessage(payload)
         }
         
         return String(payload)
