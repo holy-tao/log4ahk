@@ -1,4 +1,6 @@
-#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.1-alpha.30
+
+#Import "../Log.ahk" { Level }
 
 /** 
  * A FileAppender writes log events to a file with configurable formatting and buffering
@@ -64,7 +66,7 @@ class FileAppender {
         formattedTime := FormatTime( event.Timestamp, this.TimeFormat)
         message := StrReplace(this.Pattern, "{Timestamp}", formattedTime)
         message := StrReplace(message, "{MSec}", event.MSec)
-        message := StrReplace(message, "{Level}", Log.Level[event.Level])
+        message := StrReplace(message, "{Level}", Level[event.Level])
         message := StrReplace(message, "{Message}", event.Payload)
 
         ; Indent new lines for better readability
@@ -92,7 +94,7 @@ class FileAppender {
         this._file.WriteLine(message)
 
         this._buffer -= 1
-        if(this._buffer <= 0 || event.Level >= Log.Level.ERROR) {
+        if(this._buffer <= 0 || event.Level >= Level.ERROR) {
             this.Flush()
             this._buffer := 10
         }
@@ -127,7 +129,7 @@ class ConsoleAppender extends FileAppender {
      * @param {Log.Event} event The event to log
      */
     Call(event) {
-        if(event.Level >= Log.Level.ERROR){
+        if(event.Level >= Level.ERROR){
             this._stderr.WriteLine(this._Format(event))
         }
         else{

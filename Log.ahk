@@ -2,66 +2,13 @@
  * log4ahk's primary entry point
 */
 class Log {
-    /**
-     * Enum of valid log levels
-     */
-    class Level {
-        static ALL => 0
-        static TRACE => 1
-        static DEBUG => 2
-        static INFO => 3
-        static WARN => 4
-        static ERROR => 5
-        static FATAL => 6
-        static OFF => 7
-
-        /**
-         * Retrieves the name of a log level.
-         * 
-         *      levelName := Log.Level[4] ; "WARN" 
-         * 
-         * @param {Integer} levelNum number to get the name of
-         * @returns {String} the name of the level
-         */
-        static __Item[levelNum] {
-            get{
-                for(levelName, num in this.OwnProps()){
-                    if(num == levelNum)
-                        return levelName
-                    }
-                throw ValueError("Not a log level number", , levelNum)
-            } 
-        }
-
-        /**
-         * Takes a level number of the name of a level and resolves it to a valid log level,
-         * throwing if it can't.
-         * @param {String | Integer} lvlOrName value to resolve
-         * @returns {Integer} the resolved log leve 
-         */
-        static Resolve(lvlOrName){
-            if(IsInteger(lvlOrName)){
-                lvlOrName := Integer(lvlOrName)
-                if(lvlOrName < Log.Level.ALL || lvlOrName > Log.Level.OFF){
-                    throw ValueError("Log level out of range", , lvlOrName)
-                }
-
-                return lvlOrName
-            }
-            else if(lvlOrName is String){
-                return Log.Level.%lvlOrName%
-            }
-
-            throw TypeError("Expected a log level number or name, but got a(n) " . Type(lvlOrName), , lvlOrName)
-        }
-    }
 
     /**
      * A log event with payload evaluated
      */
     class Event {
-        __New(level, payload) {
-            this.Level := level
+        __New(logLevel, payload) {
+            this.Level := logLevel
             this.Payload := payload
 
             this.Timestamp := A_Now
@@ -70,94 +17,27 @@ class Log {
     }
 
     /**
-     * A Logger is the beginning of a logging pipeline and has its own log level, set of
-     * filters, and set of appenders.
-     */
-    class Logger {
-        
-        _Filters := []
-        _Appenders := []
-
-        /**
-         * Initializes a new Logger.
-         * @param {String} name the name of the logger. Must be unique among all registered
-         *          loggers (default: A_ScriptName) 
-         * @param {Integer} level the logger's level. If lower than the global log level, can
-         *          be used to filter logs (default: Log.Level.ALL)
-         */
-        __New(name := A_ScriptName, level := Log.Level.ALL){
-            this.Name := name
-            this.CurrentLevel := level
-
-            return this
-        }
-
-        /**
-         * Registers a new Appender
-         * @param {Func(Log.Event) => void} appender Callable object that writes an event somewhere
-         * @returns {Log} the Log class for chaining
-         */
-        WithAppender(appender){
-            if(!HasMethod(appender, , 1)){
-                throw TypeError("Appender must be a callable object that takes a Log.Event as parameter")
-            }
-
-            this._Appenders.Push(appender)
-            return this
-        }
-
-        /**
-         * Adds a filter to the log pipeline
-         * @param {Func(Log.Event) => boolean} filter Callable object that takes an event and returns a boolean
-         */
-        Filter(filter){
-            if(!HasMethod(filter, , 1)){
-                throw TypeError("Filter must be a callable object that takes a Log.Event as parameter and returns a boolean")
-            }
-
-            this._Filters.Push(filter)
-            return this
-        }
-
-        Call(event){
-            if(event.level < this.CurrentLevel)
-                return
-
-            event.Target := this.Name
-            for(filter in this._Filters){
-                if(!filter.Call(event))
-                    return
-            }
-
-            for(appender in this._Appenders){
-                appender.Call(event)
-            }
-        }
-    }
-
-    /**
      * The current logging level
      */
-    static CurrentLevel := Log.Level.INFO
+    static CurrentLevel := Level.INFO
 
     static _Filters := []
     static Loggers := Map()
 
     /**
      * Configures global settings and does any required initialization (nothing for now)
-     * @param {Integer?} level Log level to set - leave blank to read from AHK_LOG_LEVEL environment
+     * @param {Integer?} logLevel Log level to set - leave blank to read from AHK_LOG_LEVEL environment
      *          variable
      */
-    static Configure(level?){
-        levelNum := Log.Level.OFF
+    static Configure(logLevel := Level.OFF){
 
-        if(!IsSet(level)){
+        if(!IsSet(logLevel)){
             if((envVar := EnvGet("AHK_LOG_LEVEL")) != "") {
-                Log.CurrentLevel := Log.Level.Resolve(envVar)
+                Log.CurrentLevel := Level.Resolve(envVar)
             }
         }
         else{
-            Log.CurrentLevel := Log.Level.Resolve(level)
+            Log.CurrentLevel := Level.Resolve(logLevel)
         }
 
         return Log
@@ -165,18 +45,18 @@ class Log {
 
     /**
      * Registers a new logger
-     * @param {Log.Logger} logger logger to register 
+     * @param {Logger} newLogger logger to register 
      */
-    static ToLogger(logger) {
-        if(!(logger is Log.Logger)){
-            throw TypeError("Expected a Log.Logger but got a(n) " . Type(logger), , logger)
+    static ToLogger(newLogger) {
+        if(!(newLogger is Logger)){
+            throw TypeError("Expected a Logger but got a(n) " . Type(newLogger), , newLogger)
         }
 
-        if(Log.Loggers.Has(logger.Name)){
-            throw ValueError("Logger with name " . logger.Name " is already registered")
+        if(Log.Loggers.Has(newLogger.Name)){
+            throw ValueError("Logger with name " . newLogger.Name " is already registered")
         }
 
-        this.Loggers[logger.Name] := logger
+        this.Loggers[newLogger.Name] := newLogger
         return Log
     }
 
@@ -256,7 +136,7 @@ class Log {
      * @param {String | Object | Func() => String | Object} payload the payload to log
      */
     static Trace(payload){
-        Log.LogMessage(Log.Level.TRACE, payload)
+        Log.LogMessage(Level.TRACE, payload)
     }
 
     /**
@@ -264,7 +144,7 @@ class Log {
      * @param {String | Object | Func() => String | Object} payload the payload to log
      */
     static Debug(payload){
-        Log.LogMessage(Log.Level.DEBUG, payload)
+        Log.LogMessage(Level.DEBUG, payload)
     }
 
     /**
@@ -272,7 +152,7 @@ class Log {
      * @param {String | Object | Func() => String | Object} payload the payload to log
      */
     static Info(payload){
-        Log.LogMessage(Log.Level.INFO, payload)
+        Log.LogMessage(Level.INFO, payload)
     }
 
     /**
@@ -280,7 +160,7 @@ class Log {
      * @param {String | Object | Func() => String | Object} payload the payload to log
      */
     static Warn(payload){
-        Log.LogMessage(Log.Level.WARN, payload)
+        Log.LogMessage(Level.WARN, payload)
     }
 
     /**
@@ -288,7 +168,7 @@ class Log {
      * @param {String | Object | Func() => String | Object} payload the payload to log
      */
     static Error(payload){
-        Log.LogMessage(Log.Level.ERROR, payload)
+        Log.LogMessage(Level.ERROR, payload)
     }
 
     /**
@@ -296,7 +176,129 @@ class Log {
      * @param {String | Object | Func() => String | Object} payload the payload to log
      */
     static Fatal(payload){
-        Log.LogMessage(Log.Level.FATAL, payload)
+        Log.LogMessage(Level.FATAL, payload)
     }
 ;@endregion Logging Aliases
+}
+
+/**
+ * A Logger is the beginning of a logging pipeline and has its own log level, set of
+ * filters, and set of appenders.
+ */
+class Logger {
+    
+    _Filters := []
+    _Appenders := []
+
+    /**
+     * Initializes a new Logger.
+     * @param {String} name the name of the logger. Must be unique among all registered
+     *          loggers (default: A_ScriptName) 
+     * @param {Integer} logLevel the logger's level. If lower than the global log level, can
+     *          be used to filter logs (default: Level.ALL)
+     */
+    __New(name := A_ScriptName, logLevel := Level.ALL){
+        this.Name := name
+        this.CurrentLevel := logLevel
+
+        return this
+    }
+
+    /**
+     * Registers a new Appender
+     * @param {Func(Log.Event) => void} appender Callable object that writes an event somewhere
+     * @returns {Log} the Log class for chaining
+     */
+    WithAppender(appender){
+        if(!HasMethod(appender, , 1)){
+            throw TypeError("Appender must be a callable object that takes a Log.Event as parameter")
+        }
+
+        this._Appenders.Push(appender)
+        return this
+    }
+
+    /**
+     * Adds a filter to the log pipeline
+     * @param {Func(Log.Event) => boolean} filter Callable object that takes an event and returns a boolean
+     */
+    Filter(filter){
+        if(!HasMethod(filter, , 1)){
+            throw TypeError("Filter must be a callable object that takes a Log.Event as parameter and returns a boolean")
+        }
+
+        this._Filters.Push(filter)
+        return this
+    }
+
+    Call(event){
+        if(event.level < this.CurrentLevel)
+            return
+
+        event.Target := this.Name
+        for(filter in this._Filters){
+            if(!filter.Call(event))
+                return
+        }
+
+        for(appender in this._Appenders){
+            appender.Call(event)
+        }
+    }
+}
+
+
+/**
+ * Enum of valid log levels
+ */
+class Level {
+    static ALL => 0
+    static TRACE => 1
+    static DEBUG => 2
+    static INFO => 3
+    static WARN => 4
+    static ERROR => 5
+    static FATAL => 6
+    static OFF => 7
+
+    /**
+     * Retrieves the name of a log level.
+     * 
+     *      levelName := Level[4] ; "WARN" 
+     * 
+     * @param {Integer} levelNum number to get the name of
+     * @returns {String} the name of the level
+     */
+    static __Item[levelNum] {
+        get{
+            for(levelName, num in this.OwnProps()){
+                if(num == levelNum)
+                    return levelName
+                }
+            throw ValueError("Not a log level number", , levelNum)
+        } 
+    }
+
+    /**
+     * Takes a level number of the name of a level and resolves it to a valid log level,
+     * throwing if it can't.
+     * @param {String | Integer} lvlOrName value to resolve
+     * @returns {Integer} the resolved log leve 
+     */
+    static Resolve(lvlOrName){
+        if(IsInteger(lvlOrName)){
+            lvlOrName := Integer(lvlOrName)
+            if(lvlOrName < Level.ALL || lvlOrName > Level.OFF){
+                throw ValueError("Log level out of range", , lvlOrName)
+            }
+
+            return lvlOrName
+        }
+        else if(lvlOrName is String){
+            ;@ahkbuild-resolvesto ALL TRACE DEBIG INFO WARN ERROR FATAL OFF
+            return Level.%lvlOrName%
+        }
+
+        throw TypeError("Expected a log level number or name, but got a(n) " . Type(lvlOrName), , lvlOrName.Prototype.__Class)
+    }
 }

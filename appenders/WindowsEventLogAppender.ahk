@@ -1,7 +1,11 @@
 #Requires AutoHotkey v2.0
 
-#Include <AhkWin32Projection\Windows\Win32\System\EventLog\Apis>
-#Include <AhkWin32Projection\Windows\Win32\System\EventLog\REPORT_EVENT_TYPE>
+#Import "Windows\Win32\System\EventLog" {
+    REPORT_EVENT_TYPE,
+    RegisterEventSourceW,
+    ReportEventW,
+    DeregisterEventSource
+}
 
 /**
  * An appender that writes log event messages to the Windows Event Log. This appender requires
@@ -25,7 +29,7 @@ class WindowsEventLogAppender {
     __New(eventSourceName := A_ScriptName){
         this._RegisterEventSource(eventSourceName)
 
-        this._hEvtLog := EventLog.RegisterEventSourceW(0, eventSourceName)
+        this._hEvtLog := RegisterEventSourceW(0, eventSourceName)
 
         this._OnExit := (*) => this.__Delete()
         OnExit(this._OnExit)
@@ -44,7 +48,7 @@ class WindowsEventLogAppender {
 
         wType := this._LogLevelToEventType(event.level)
 
-        EventLog.ReportEventW(this._hEvtLog, wType, 0, event.level, 0, 1, 0, arrBuf, 0)
+        ReportEventW(this._hEvtLog, wType, 0, event.level, 0, 1, 0, arrBuf, 0)
     }
 
     /**
@@ -95,7 +99,7 @@ class WindowsEventLogAppender {
     __Delete(){
         OnExit(this._OnExit, 0)
         if(this._hEvtLog != 0) {
-            EventLog.DeregisterEventSource(this._hEvtLog)
+            DeregisterEventSource(this._hEvtLog)
         }
     }
 }

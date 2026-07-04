@@ -1,5 +1,7 @@
 #Requires AutoHotkey v2.0
 
+#Import "../Log.ahk" { Log, Level }
+
 /**
  * An appender that writes log event messages to a GUI status bar
  * @see https://www.autohotkey.com/docs/v2/lib/GuiControls.htm#StatusBar
